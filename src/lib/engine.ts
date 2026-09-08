@@ -1,5 +1,7 @@
-import type Anthropic from "@anthropic-ai/sdk";
+import * as z from "zod";
 import type { ZodType } from "zod";
+import { BODY_FONTS, DISPLAY_FONTS, LOGO_FONTS } from "@/lib/fonts";
+import { sanitizeSchema, type Part } from "@/lib/gemini";
 import {
   DESIGN_SYSTEM,
   POSITIONING_SYSTEM,
@@ -11,9 +13,6 @@ import {
 import { BrandKitSchema } from "@/lib/schema/brand";
 import { PositioningSchema } from "@/lib/schema/positioning";
 
-/** Opus 5는 thinking을 생략하면 adaptive thinking이 기본으로 켜진다. */
-export const MODEL = "claude-opus-5";
-
 export type JobName = "position" | "design";
 
 /** 스트리밍 중 partial JSON에서 최상위 키를 보고 사람이 읽을 단계 이름을 뽑는다. */
@@ -21,8 +20,11 @@ export type StageMap = { key: string; label: string }[];
 
 export type Job = {
   system: string;
-  content: Anthropic.ContentBlockParam[];
+  input: Part[];
+  /** 결과 검증용 (관대하게 받는다) */
   schema: ZodType<unknown>;
+  /** Gemini에 보낼 출력 스키마 (여기서는 enum을 강제한다) */
+  jsonSchema: Record<string, unknown>;
   stages: StageMap;
   maxTokens: number;
 };
@@ -74,21 +76,66 @@ export const EMPTY_DESIGN: DesignInput = {
   positioningContext: "",
 };
 
-/** 클라이언트가 보낸 data URL을 Anthropic 이미지 블록으로. */
-export function toImageBlocks(dataUrls: string[]): Anthropic.ContentBlockParam[] {
+/**
+ * 스키마에는 관대한 z.string()으로 두되, Gemini에 보내는 JSON Schema에는 enum을 넣는다.
+ *
+ * 이렇게 나눈 이유: Gemini는 enum을 실제로 강제해주므로 첫 시도에 맞을 확률이 높아지고,
+ * 그럼에도 어긋난 값이 오면 검증에서 결과 전체를 버리는 대신 화면에서 보정할 수 있다.
+ */
+const ENUM_HINTS: Record<string, Record<string, readonly string[]>> = {
+  design: {
+    "typography.logoFont": LOGO_FONTS,
+    "typography.displayFont": DISPLAY_FONTS,
+    "typography.bodyFont": BODY_FONTS,
+    "typography.logoCase": ["uppercase", "lowercase", "none"],
+    "typography.logoTracking": ["-0.04em", "-0.02em", "0em", "0.04em", "0.1em", "0.2em", "0.34em"],
+    "typography.displayWeight": ["300", "400", "500", "600", "700", "800", "900"],
+    "typography.displayTracking": ["-0.05em", "-0.03em", "-0.015em", "0em", "0.02em", "0.06em"],
+    "logo.lockup": ["stacked", "horizontal", "boxed", "underlined", "circle"],
+  },
+  position: {
+    "audience[].priority": ["1순위", "2순위", "3순위"],
+    "differentiators[].defensibility": ["높음", "중간", "낮음"],
+    "channels[].priority": ["높음", "중간", "낮음"],
+  },
+};
+
+/** "typography.logoFont" / "audience[].priority" 같은 경로를 따라가 enum을 심는다. */
+function applyEnumHints(schema: Record<string, unknown>, hints: Record<string, readonly string[]>) {
+  for (const [path, values] of Object.entries(hints)) {
+    let node: Record<string, unknown> | undefined = schema;
+    for (const rawSegment of path.split(".")) {
+      if (!node) break;
+      const isArray = rawSegment.endsWith("[]");
+      const key = isArray ? rawSegment.slice(0, -2) : rawSegment;
+      const props = node.properties as Record<string, unknown> | undefined;
+      let next = props?.[key] as Record<string, unknown> | undefined;
+      if (next && isArray) next = next.items as Record<string, unknown> | undefined;
+      node = next;
+    }
+    if (node && node.type === "string") node.enum = [...values];
+  }
+}
+
+function buildJsonSchema(schema: ZodType<unknown>, job: JobName): Record<string, unknown> {
+  const raw = z.toJSONSchema(schema, { io: "output" }) as Record<string, unknown>;
+  const clean = sanitizeSchema(raw) as Record<string, unknown>;
+  applyEnumHints(clean, ENUM_HINTS[job] ?? {});
+  return clean;
+}
+
+/** 클라이언트가 보낸 data URL을 Gemini 이미지 파트로. */
+export function toImageParts(dataUrls: string[]): Part[] {
   const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-  const blocks: Anthropic.ContentBlockParam[] = [];
+  const parts: Part[] = [];
   for (const url of dataUrls.slice(0, 8)) {
     const match = /^data:([^;]+);base64,(.+)$/.exec(url);
     if (!match) continue;
-    const [, mediaType, data] = match;
-    if (!allowed.includes(mediaType)) continue;
-    blocks.push({
-      type: "image",
-      source: { type: "base64", media_type: mediaType as "image/jpeg", data },
-    });
+    const [, mimeType, data] = match;
+    if (!allowed.includes(mimeType)) continue;
+    parts.push({ type: "image", data, mime_type: mimeType });
   }
-  return blocks;
+  return parts;
 }
 
 export class InputError extends Error {}
@@ -102,7 +149,7 @@ export function buildJob(
   job: JobName,
   payload: { product?: Partial<ProductInput>; design?: Partial<DesignInput>; images?: string[] },
 ): Job {
-  const images = toImageBlocks(payload.images ?? []);
+  const images = toImageParts(payload.images ?? []);
 
   if (job === "position") {
     const product: ProductInput = { ...EMPTY_PRODUCT, ...payload.product };
@@ -111,13 +158,14 @@ export function buildJob(
     }
     return {
       system: POSITIONING_SYSTEM,
-      content: [
+      input: [
         ...images,
         { type: "text", text: buildPositioningPrompt(product, images.length > 0) },
       ],
       schema: PositioningSchema,
+      jsonSchema: buildJsonSchema(PositioningSchema, "position"),
       stages: POSITION_STAGES,
-      maxTokens: 32000,
+      maxTokens: 32768,
     };
   }
 
@@ -127,10 +175,11 @@ export function buildJob(
   }
   return {
     system: DESIGN_SYSTEM,
-    content: [...images, { type: "text", text: buildDesignPrompt(design, images.length) }],
+    input: [...images, { type: "text", text: buildDesignPrompt(design, images.length) }],
     schema: BrandKitSchema,
+    jsonSchema: buildJsonSchema(BrandKitSchema, "design"),
     stages: DESIGN_STAGES,
-    maxTokens: 32000,
+    maxTokens: 32768,
   };
 }
 
@@ -149,27 +198,25 @@ export function parseResult(
 ): { ok: true; data: unknown } | { ok: false; message: string } {
   let json: unknown;
   try {
-    json = JSON.parse(text);
+    json = JSON.parse(stripFence(text));
   } catch {
     return { ok: false, message: "결과를 해석하지 못했습니다. 다시 시도해주세요." };
   }
   const result = schema.safeParse(json);
   if (!result.success) {
+    const issue = result.error.issues[0];
+    const where = issue?.path?.length ? ` (${issue.path.join(".")})` : "";
     return {
       ok: false,
-      message: "결과 형식이 올바르지 않습니다: " + (result.error.issues[0]?.message ?? "알 수 없음"),
+      message: `결과 형식이 올바르지 않습니다${where}: ${issue?.message ?? "알 수 없음"}`,
     };
   }
   return { ok: true, data: result.data };
 }
 
-/** stop_reason이 정상이 아닐 때의 안내 문구. null이면 정상. */
-export function stopReasonMessage(stopReason: string | null): string | null {
-  if (stopReason === "refusal") {
-    return "모델이 이 요청에 대한 응답을 거절했습니다. 입력 내용을 조정해서 다시 시도해주세요.";
-  }
-  if (stopReason === "max_tokens") {
-    return "결과가 너무 길어 잘렸습니다. 입력을 줄이고 다시 시도해주세요.";
-  }
-  return null;
+/** 모델이 ```json 펜스를 붙여 보내는 경우가 있어 벗겨낸다. */
+function stripFence(text: string): string {
+  const trimmed = text.trim();
+  const fence = /^```(?:json)?\s*\n([\s\S]*?)\n?```$/.exec(trimmed);
+  return fence ? fence[1] : trimmed;
 }

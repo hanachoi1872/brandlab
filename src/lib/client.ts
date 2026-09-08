@@ -2,6 +2,7 @@
 
 import { InputError, buildJob, type JobName } from "@/lib/engine";
 import { runInBrowser } from "@/lib/browser-run";
+import { DEFAULT_MODEL } from "@/lib/gemini";
 
 export type StreamEvent =
   | { type: "progress"; stage: string; chars: number }
@@ -16,6 +17,7 @@ export type CallMode = "server" | "browser";
 const PASSWORD_KEY = "brandlab.password";
 const APIKEY_KEY = "brandlab.apikey";
 const MODE_KEY = "brandlab.mode";
+const MODEL_KEY = "brandlab.model";
 
 function read(key: string): string {
   if (typeof window === "undefined") return "";
@@ -48,9 +50,12 @@ export function setCallMode(mode: CallMode) {
   write(MODE_KEY, mode);
 }
 
+export const getStoredModel = () => read(MODEL_KEY) || DEFAULT_MODEL;
+export const setStoredModel = (v: string) => write(MODEL_KEY, v || DEFAULT_MODEL);
+
 /**
  * 한 번의 분석을 실행한다.
- * 서버 모드면 /api로 SSE를 받고, 브라우저 모드면 Anthropic을 직접 호출한다.
+ * 서버 모드면 /api로 SSE를 받고, 브라우저 모드면 Gemini를 직접 호출한다.
  * 어느 쪽이든 같은 이벤트 모양으로 돌려주므로 화면 코드는 모드를 몰라도 된다.
  */
 export async function runJob(
@@ -74,6 +79,7 @@ export async function runJob(
     const result = await runInBrowser(
       built,
       getStoredApiKey(),
+      getStoredModel(),
       (stage, chars) => onEvent({ type: "progress", stage, chars }),
       signal,
     );
@@ -138,11 +144,11 @@ async function streamFromServer(
   }
 }
 
-const MAX_EDGE = 1568; // Claude 비전이 내부적으로 리사이즈하는 상한. 그 이상은 낭비.
+const MAX_EDGE = 1568; // 이보다 크게 보내도 모델이 어차피 줄인다. 토큰만 더 든다.
 
 /**
  * 업로드 전에 브라우저에서 축소한다.
- * 원본을 그대로 보내면 요청 본문 제한(4.5MB)에 걸리고, 토큰도 더 든다.
+ * 원본을 그대로 보내면 요청이 너무 커지고 토큰도 더 든다.
  */
 export function downscaleImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {

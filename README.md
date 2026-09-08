@@ -3,9 +3,11 @@
 **→ https://hanachoi1872.github.io/brandlab/**
 
 제품을 넣으면 **포지셔닝 전략**을, 레퍼런스를 넣으면 **브랜드 디자인 키트와 시안**을 만들어주는 웹앱.
+Google Gemini API로 동작하며, **무료 한도 안에서 쓸 수 있습니다.**
 
-> 위 주소는 서버가 없는 정적 배포라, 처음 들어가면 **설정에서 본인의 Anthropic API 키**를 넣어야 합니다.
-> 키는 그 브라우저에만 저장되고 Anthropic 외에는 어디로도 전송되지 않습니다.
+> 처음 들어가면 **설정에서 본인의 Gemini API 키**를 넣어야 합니다.
+> [Google AI Studio](https://aistudio.google.com/apikey)에서 **신용카드 없이 무료로** 발급됩니다.
+> 키는 그 브라우저에만 저장되고 Google 외에는 어디로도 전송되지 않습니다.
 > 키 없이도 **"샘플 결과 둘러보기"** 로 결과물 형태는 볼 수 있습니다.
 >
 > `main` 에 푸시하면 GitHub Actions가 알아서 다시 빌드해서 배포합니다.
@@ -17,10 +19,9 @@
 | 서버 | 없음 (정적) | 있음 |
 | API 키 | **쓰는 사람이 각자 입력** | 서버에 숨겨짐 |
 | 링크 공유 | 받는 사람도 자기 키 필요 | 키 없이 바로 사용 |
-| 비용 부담 | 각자 자기 키로 | 회원님 키로 전부 |
 | 적합한 경우 | 나 혼자 쓸 때 | 클라이언트·동료에게 줄 때 |
 
-같은 코드에서 둘 다 빌드됩니다. 먼저 GitHub Pages로 쓰다가 나중에 Vercel로 옮겨도 코드는 그대로입니다.
+같은 코드에서 둘 다 빌드됩니다.
 
 ---
 
@@ -53,18 +54,26 @@
 
 결과는 **마크다운**(노션·구글독스 붙여넣기용)과 **JSON**으로 내보낼 수 있고, 브라우저에 자동 저장되어 새로고침해도 남습니다.
 
-API 키 없이도 각 탭의 **"샘플 결과 둘러보기"** 버튼으로 결과물의 형태를 미리 볼 수 있습니다.
+---
+
+## 비용 — 무료 한도
+
+Gemini API는 **무료 티어가 있고 신용카드 등록이 필요 없습니다.** 이 앱은 그 한도 안에서 쓰도록 만들어졌습니다.
+
+무료 한도는 모델과 계정에 따라 다르고 수시로 바뀝니다. 본인 한도는
+[AI Studio 요금 한도 페이지](https://aistudio.google.com/rate-limit)에서 확인하세요.
+
+한도를 넘으면(`429`) 앱이 안내 메시지를 띄웁니다. 잠시 기다렸다 다시 시도하거나, 설정에서 더 가벼운 모델(`-lite` 계열)로 바꾸면 됩니다.
+
+**모델은 설정에서 바꿀 수 있습니다.** "내 키로 목록 불러오기"를 누르면 그 키로 실제 쓸 수 있는 모델을 불러옵니다 — 모델 이름이 바뀌어도 앱이 안 깨집니다.
 
 ---
 
 ## 방법 A — GitHub Pages (내 사이트에 올리기)
 
 서버가 없으므로 **쓰는 사람이 각자 자기 API 키를 입력**합니다.
-키는 그 사람 브라우저에만 저장되고 Anthropic 외에는 어디로도 가지 않습니다.
 
 ### 1. 정적 빌드
-
-저장소 종류에 따라 명령이 다릅니다.
 
 **`아이디.github.io` 저장소** (사이트 주소가 `https://아이디.github.io`):
 
@@ -81,79 +90,48 @@ npm run build:static -- brandlab
 ```
 
 > 저장소 이름을 반드시 넘겨야 합니다. 안 넘기면 CSS와 JS 경로가 어긋나서 화면이 깨집니다.
-> `brandlab` 자리에 실제 저장소 이름을 넣으세요. 앞에 `/`를 붙여도 되지만,
-> Windows Git Bash에서는 경로가 잘못 변환될 수 있어 슬래시 없이 쓰는 편이 안전합니다.
+> `brandlab` 자리에 실제 저장소 이름을 넣으세요.
 
 `out/` 폴더가 만들어집니다.
 
 > **빌드가 도중에 죽는다면** 메모리 부족입니다. 크롬 탭 등을 좀 닫고 다시 시도하거나,
-> 워커를 하나로 줄여서 돌리세요 (느리지만 메모리를 훨씬 덜 씁니다):
+> 워커를 하나로 줄여서 돌리세요:
 >
 > ```bash
 > LOW_MEMORY=1 npm run build:static -- brandlab
 > ```
 >
-> Windows PowerShell에서는 `$env:LOW_MEMORY=1; npm run build:static -- brandlab`
+> 애초에 **직접 빌드할 필요가 없습니다** — `main`에 푸시하면 GitHub Actions가 대신 빌드합니다.
 
-### 2. GitHub에 올리기
+### 2. GitHub Pages 켜기
 
-가장 간단한 방법은 `out/` 안의 내용을 GitHub Pages용 저장소(또는 브랜치)에 그대로 올리는 것입니다.
+이 저장소에는 이미 배포 워크플로(`.github/workflows/deploy.yml`)가 들어 있습니다.
 
-```bash
-cd out
-git init
-git add .
-git commit -m "BrandLab 배포"
-git branch -M main
-git remote add origin https://github.com/<아이디>/<저장소>.git
-git push -f origin main
-```
+1. 저장소 → **Settings → Pages** → Source를 **`GitHub Actions`** 로 선택
+2. `main`에 푸시하면 자동으로 빌드·배포
 
-그리고 GitHub 저장소 → **Settings → Pages** 에서 Source를 `main` 브랜치 `/ (root)` 로 지정합니다.
-
-### 3. 사용
-
-사이트에 접속하면 API 키를 입력하라는 안내가 뜹니다.
-[console.anthropic.com](https://console.anthropic.com/settings/keys) 에서 키를 발급받아 **설정**에 넣으면 됩니다. 한 번 넣으면 그 브라우저에 저장됩니다.
+저장소가 **비공개**면 GitHub Pages는 유료 플랜(GitHub Pro)이 필요합니다.
 
 ---
 
 ## 방법 B — Vercel (링크만 주면 되는 방식)
 
-키가 서버에 숨겨져서, 링크를 받은 사람은 키 없이 바로 씁니다. 비용은 회원님 키로 나갑니다.
+키가 서버에 숨겨져서, 링크를 받은 사람은 키 없이 바로 씁니다. 비공개 저장소도 무료로 됩니다.
 
-### 1. API 키 발급
-
-[console.anthropic.com](https://console.anthropic.com/settings/keys) 에서 키를 만들고 결제 수단을 등록합니다.
-(Claude 구독과는 별개입니다. API는 쓴 만큼 과금됩니다.)
-
-### 2. GitHub에 올리기
-
-```bash
-git init
-git add .
-git commit -m "BrandLab 초기 버전"
-gh repo create brandlab --private --source=. --push
-```
-
-`gh`가 없으면 GitHub에서 빈 저장소를 만든 뒤 `git remote add origin <주소>` → `git push -u origin main`.
-
-### 3. Vercel 연결
-
-1. [vercel.com/new](https://vercel.com/new) 에서 방금 만든 저장소를 선택
+1. [vercel.com/new](https://vercel.com/new) 에서 저장소 선택
 2. **Environment Variables** 에 추가:
 
    | Name | Value |
    |---|---|
-   | `ANTHROPIC_API_KEY` | 1번에서 발급한 키 |
+   | `GEMINI_API_KEY` | [AI Studio](https://aistudio.google.com/apikey)에서 발급한 키 |
+   | `GEMINI_MODEL` | (선택) 비우면 `gemini-2.5-flash` |
    | `APP_PASSWORD` | (선택) 접속 비밀번호 |
 
 3. Deploy
 
-> **`APP_PASSWORD`를 꼭 설정하는 걸 권합니다.** 없으면 링크를 아는 사람이 회원님의 API 크레딧을 쓸 수 있습니다.
-> 처음 요청할 때 입력창이 뜨고, 한 번 입력하면 브라우저에 저장됩니다.
+> **`APP_PASSWORD`를 설정하는 걸 권합니다.** 없으면 링크를 아는 사람이 회원님의 무료 한도를 씁니다.
 
-환경변수를 나중에 바꿨다면 Vercel 대시보드 → Settings → Environment Variables 에서 수정한 뒤 **Redeploy** 해야 반영됩니다.
+환경변수를 나중에 바꿨다면 Settings → Environment Variables 에서 수정한 뒤 **Redeploy** 해야 반영됩니다.
 
 Vercel에 올렸어도 **설정 → "내 API 키로 직접 호출"** 을 켜면 개인 키로 쓸 수 있습니다.
 
@@ -163,27 +141,13 @@ Vercel에 올렸어도 **설정 → "내 API 키로 직접 호출"** 을 켜면 
 
 ```bash
 npm install
-cp .env.example .env.local   # .env.local 을 열어 ANTHROPIC_API_KEY 채우기
+cp .env.example .env.local   # .env.local 을 열어 GEMINI_API_KEY 채우기
 npm run dev
 ```
 
 → http://localhost:3000
 
 키를 `.env.local`에 넣지 않아도, 설정에서 "내 API 키로 직접 호출"을 켜고 키를 넣으면 동작합니다.
-
----
-
-## 비용
-
-Claude Opus 5 기준 (입력 $5 / 출력 $25 per 1M 토큰):
-
-| 작업 | 대략 |
-|---|---|
-| 포지셔닝 분석 1회 | 약 $0.2 ~ $0.4 |
-| 디자인 생성 1회 (이미지 4장 포함) | 약 $0.15 ~ $0.3 |
-
-한 제품을 처음부터 끝까지 돌리면 대략 **500~1,000원** 수준입니다.
-정확한 사용량은 [console.anthropic.com/usage](https://console.anthropic.com/usage) 에서 확인하세요.
 
 ---
 
@@ -195,13 +159,12 @@ src/
 │  ├─ page.tsx              메인 화면 (탭·폼·상태 관리)
 │  ├─ layout.tsx            폰트·메타
 │  ├─ globals.css           디자인 토큰 (라이트/다크)
-│  └─ api/                  서버 모드 전용. 정적 빌드 때는 잠시 치워둔다
-│     ├─ position/route.ts
-│     └─ design/route.ts
+│  └─ api/                  서버 모드 전용 (route.server.ts)
 ├─ lib/
+│  ├─ gemini.ts             ★ Gemini Interactions API 클라이언트 (fetch만 사용)
 │  ├─ engine.ts             ★ 프롬프트·스키마 조립 (서버/브라우저 공용)
-│  ├─ server-run.ts         서버 모드 — SSE 스트리밍
-│  ├─ browser-run.ts        브라우저 모드 — Anthropic 직접 호출
+│  ├─ server-run.ts         서버 모드 — SSE 중계
+│  ├─ browser-run.ts        브라우저 모드 — Gemini 직접 호출
 │  ├─ client.ts             모드 분기·이미지 축소·다운로드
 │  ├─ prompts.ts            시스템 프롬프트 (컨설턴트 인격)
 │  ├─ schema/               Zod 스키마 = 출력 형식
@@ -212,18 +175,21 @@ src/
 └─ components/
    ├─ PositioningReport.tsx / PositioningMap.tsx
    ├─ BrandKitView.tsx
-   ├─ Settings.tsx          API 키·호출 방식 설정
+   ├─ Settings.tsx          API 키·모델·호출 방식 설정
    ├─ ImageUploader.tsx / ui.tsx
    └─ mockups/              시안 5종 + 캡처 프레임
 ```
 
 ### 설계상 알아둘 점
 
-- **프롬프트와 스키마는 `engine.ts` 한 곳에만 있습니다.** 서버 모드와 브라우저 모드가 같은 함수를 쓰므로, 어느 쪽으로 배포하든 결과가 갈라지지 않습니다.
-- **구조화 출력의 `enum`은 강제되지 않습니다.** Anthropic SDK가 지원하지 않는 JSON Schema 키워드를 설명 힌트로 바꿔 넘기기 때문입니다. 그래서 서체·등급 같은 필드는 스키마에서 관대하게 받고, 화면에서 화이트리스트로 보정합니다 — 서체 이름 하나 어긋났다고 비싼 분석 결과 전체를 버리지 않기 위해서입니다.
-- **응답을 스트리밍합니다.** 긴 분석에도 연결이 끊기지 않고, 진행 단계를 실제로 보여줄 수 있습니다.
-- **이미지는 업로드 전에 브라우저에서 축소합니다** (최대 1568px). 요청 크기 제한을 넘지 않고 토큰도 아낍니다.
-- **시안은 고정 픽셀로 그린 뒤 화면에서만 축소해 보여줍니다.** 화면 폭에 따라 레이아웃이 깨지지 않고, PNG 해상도가 항상 일정합니다.
+- **SDK를 쓰지 않고 `fetch`만 씁니다.** 브라우저와 서버에서 코드가 같아지고, 정적 배포 번들이 가벼워집니다. `generativelanguage.googleapis.com`이 CORS로 브라우저 직접 호출을 허용하는 걸 확인했습니다.
+- **프롬프트와 스키마는 `engine.ts` 한 곳에만 있습니다.** 서버 모드와 브라우저 모드가 같은 함수를 쓰므로 결과가 갈라지지 않습니다.
+- **출력 형식을 JSON Schema로 강제합니다.** Zod 스키마를 Gemini가 받는 형태로 정제해서 보냅니다. 서체 목록 같은 건 `enum`으로 넣어 모델이 목록 밖 값을 못 고르게 합니다.
+- **그럼에도 화면에서 한 번 더 보정합니다.** 검증 스키마는 관대하게 두고 UI에서 화이트리스트로 스냅합니다 — 값 하나 어긋났다고 분석 결과 전체를 버리지 않기 위해서입니다.
+- **모델 목록을 런타임에 불러옵니다.** 모델 ID는 자주 바뀌므로 하드코딩에 의존하지 않습니다.
+- **응답을 스트리밍합니다.** 긴 분석에도 연결이 끊기지 않고, 진행 단계를 보여줄 수 있습니다.
+- **이미지는 업로드 전에 브라우저에서 축소합니다** (최대 1568px).
+- **시안은 고정 픽셀로 그린 뒤 화면에서만 축소해 보여줍니다.** 레이아웃이 안 깨지고 PNG 해상도가 일정합니다.
 
 ---
 

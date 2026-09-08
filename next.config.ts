@@ -16,7 +16,6 @@ const pageExtensions = isStatic ? ["tsx", "ts"] : ["server.ts", "tsx", "ts"];
 
 const nextConfig: NextConfig = {
   pageExtensions,
-  serverExternalPackages: isStatic ? undefined : ["@anthropic-ai/sdk"],
   // 램이 빠듯한 노트북에서 빌드 워커가 죽으면 LOW_MEMORY=1 을 주고 빌드한다.
   // 워커를 하나로 줄여 느려지는 대신 메모리를 훨씬 덜 쓴다.
   experimental: {

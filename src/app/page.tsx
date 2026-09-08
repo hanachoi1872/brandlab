@@ -231,7 +231,7 @@ export default function Home() {
         <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-accent/45 bg-surface-1 px-4 py-3">
           <p className="text-[13px] leading-relaxed">
             {STATIC_BUILD
-              ? "이 페이지는 서버 없이 동작합니다. 사용하려면 본인의 Anthropic API 키가 필요합니다."
+              ? "이 페이지는 서버 없이 동작합니다. 사용하려면 본인의 Gemini API 키가 필요합니다 (무료)."
               : "'내 API 키로 직접 호출' 모드입니다. API 키를 입력해주세요."}
           </p>
           <Button onClick={() => setSettingsOpen(true)}>API 키 입력</Button>
@@ -525,8 +525,8 @@ export default function Home() {
       )}
 
       <footer className="mt-12 border-t border-line pt-5 text-[12px] leading-relaxed text-ink-3">
-        Claude Opus 5로 분석합니다. 결과는 전략 초안이며, 경쟁사 정보와 시장 수치는 반드시 실제 데이터로
-        검증한 뒤 사용하세요.
+        Google Gemini로 분석합니다. 결과는 전략 초안이며, 경쟁사 정보와 시장 수치는 반드시 실제
+        데이터로 검증한 뒤 사용하세요.
       </footer>
     </div>
   );
@@ -572,7 +572,7 @@ function Progress({ stage, chars, expected }: { stage: string; chars: number; ex
         />
       </div>
       <p className="mt-3 text-[12px] leading-relaxed text-ink-3">
-        Claude Opus 5가 단계별로 작성 중입니다. 창을 닫지 말고 기다려주세요.
+        Gemini가 단계별로 작성 중입니다. 창을 닫지 말고 기다려주세요.
       </p>
     </div>
   );
