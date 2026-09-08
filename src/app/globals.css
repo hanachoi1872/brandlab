@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/* 앱 자체의 팔레트. dataviz 레퍼런스 팔레트와 같은 표면/잉크 토큰을 쓴다 —
+   포지셔닝 맵이 앱 배경 위에서 검증된 대비를 그대로 유지하도록. */
+:root {
+  color-scheme: light;
+  --surface-0: #f4f3f0;
+  --surface-1: #fcfcfb;
+  --surface-2: #eeece7;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-3: #898781;
+  --line: #dfddd6;
+  --line-strong: #c3c2b7;
+  --series-1: #2a78d6;
+  --accent: #eb6834;
+  --good: #1baf7a;
+}
+
+:root:not([data-theme="light"]) {
+  @media (prefers-color-scheme: dark) {
+    color-scheme: dark;
+    --surface-0: #121211;
+    --surface-1: #1a1a19;
+    --surface-2: #232322;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-3: #898781;
+    --line: #2e2e2c;
+    --line-strong: #383835;
+    --series-1: #3987e5;
+    --accent: #d95926;
+    --good: #199e70;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #121211;
+  --surface-1: #1a1a19;
+  --surface-2: #232322;
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --ink-3: #898781;
+  --line: #2e2e2c;
+  --line-strong: #383835;
+  --series-1: #3987e5;
+  --accent: #d95926;
+  --good: #199e70;
+}
+
+@theme inline {
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-series-1: var(--series-1);
+  --color-brand-accent: var(--accent);
+  --color-good: var(--good);
+  --font-sans: "Pretendard Variable", Pretendard, "Noto Sans KR", -apple-system,
+    "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+}
+
+html,
+body {
+  background: var(--surface-0);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "tnum" 1;
+}
+
+/* 목업 안에서는 브랜드 서체가 이겨야 하므로 앱 폰트를 상속시키지 않는다. */
+.mockup {
+  font-family: var(--mk-body);
+}
+
+::selection {
+  background: var(--series-1);
+  color: #fff;
+}
+
+@keyframes bl-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+.bl-pulse { animation: bl-pulse 1.4s ease-in-out infinite; }
+
+@keyframes bl-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.bl-in { animation: bl-in 0.35s ease-out both; }
+
+@media print {
+  .no-print { display: none !important; }
+}

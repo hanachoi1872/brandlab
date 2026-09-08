@@ -1,0 +1,61 @@
+name: Deploy to GitHub Pages
+
+# main 에 푸시할 때마다 GitHub이 대신 빌드해서 Pages에 올린다.
+# 내 컴퓨터에서 빌드할 필요가 없다.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # 저장소 이름이 basePath가 된다.
+      # 단, 아이디.github.io 저장소는 사이트가 루트에 있으므로 basePath가 없어야 한다.
+      - name: basePath 결정
+        id: bp
+        run: |
+          REPO="${{ github.event.repository.name }}"
+          if [[ "$REPO" == *.github.io ]]; then
+            echo "value=" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=$REPO" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 정적 빌드
+        run: npm run build:static -- "${{ steps.bp.outputs.value }}"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
